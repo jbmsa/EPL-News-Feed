@@ -2,7 +2,7 @@ name: Build Unified EPL Feed
 
 on:
   schedule:
-    - cron: "0 * * * *"   # every hour
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install feedparser
+      - name: Install dependencies
         run: pip install feedparser requests
 
       - name: Build merged EPL feed
@@ -28,46 +28,51 @@ jobs:
           import datetime
           import requests
 
-          # YouTube proxy that works inside GitHub Actions
+          TIMEOUT = 10  # seconds
+
           YT = "https://yt.lemnoslife.com/videos?channel_id="
 
           sources = [
               "https://www.nbcsports.com/rss/premier-league",
-              YT + "UCqZQlzSHbVJrwrn5XvzrzcA",  # Premier League
-              YT + "UCNAf1k0yIjyGu3k9BwAg3lg",  # Sky Sports Football
-              YT + "UCpryVRk_VDudG8SHXgWcG0w",  # Arsenal
-              YT + "UC9LQwHZoucFT94UO8G9o8tQ",  # Liverpool
-              YT + "UCxgkH9s9hLr2GfQb6uVn7Ww",  # Man City
-              YT + "UC2vUeOeR3_1dC7lRzPp8X0w",  # Spurs
-              YT + "UC6yW44UGJJBvYTlfC7CRg2Q"   # Man United
+              YT + "UCqZQlzSHbVJrwrn5XvzrzcA",
+              YT + "UCNAf1k0yIjyGu3k9BwAg3lg",
+              YT + "UCpryVRk_VDudG8SHXgWcG0w",
+              YT + "UC9LQwHZoucFT94UO8G9o8tQ",
+              YT + "UCxgkH9s9hLr2GfQb6uVn7Ww",
+              YT + "UC2vUeOeR3_1dC7lRzPp8X0w",
+              YT + "UC6yW44UGJJBvYTlfC7CRg2Q"
           ]
 
           entries = []
 
           for url in sources:
+              print(f"Fetching: {url}")
               try:
                   if "lemnoslife" in url:
-                      # YouTube JSON → convert to RSS-like entries
-                      data = requests.get(url).json()
+                      r = requests.get(url, timeout=TIMEOUT)
+                      data = r.json()
                       for item in data.get("items", []):
+                          published = item.get("publishedAt", "")
+                          try:
+                              parsed = datetime.datetime.fromisoformat(published.replace("Z",""))
+                          except:
+                              parsed = datetime.datetime.min
+
                           entries.append({
                               "title": item.get("title", "No title"),
                               "link": f"https://www.youtube.com/watch?v={item.get('id')}",
-                              "published": item.get("publishedAt", ""),
-                              "published_parsed": datetime.datetime.fromisoformat(item.get("publishedAt", "").replace("Z",""))
+                              "published": published,
+                              "published_parsed": parsed
                           })
                   else:
-                      # Normal RSS feed
                       feed = feedparser.parse(url)
                       entries.extend(feed.entries)
+
               except Exception as e:
-                  print(f"Error parsing {url}: {e}")
+                  print(f"Skipping {url}: {e}")
 
           # Sort newest first
-          def sort_key(e):
-              return e.get("published_parsed", datetime.datetime.min)
-
-          entries.sort(key=sort_key, reverse=True)
+          entries.sort(key=lambda e: e.get("published_parsed", datetime.datetime.min), reverse=True)
 
           # Build RSS XML
           xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -77,15 +82,16 @@ jobs:
           xml += '<description>Merged EPL video highlights</description>\n'
 
           for e in entries[:50]:
-              title = e.get("title", "No title")
-              link = e.get("link", "")
-              pub = e.get("published", "")
-              xml += f"<item><title>{title}</title><link>{link}</link><pubDate>{pub}</pubDate></item>\n"
+              xml += f"<item><title>{e.get('title')}</title>"
+              xml += f"<link>{e.get('link')}</link>"
+              xml += f"<pubDate>{e.get('published')}</pubDate></item>\n"
 
           xml += "</channel>\n</rss>"
 
           with open("epl-video.xml", "w") as f:
               f.write(xml)
+
+          print("Feed built successfully.")
           EOF
 
       - name: Commit merged feed
