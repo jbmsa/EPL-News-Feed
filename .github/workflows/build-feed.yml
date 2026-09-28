@@ -48,7 +48,6 @@ jobs:
               print(f"Fetching: {url}")
               feed = feedparser.parse(url)
               for item in feed.entries:
-                  # Normalize published date
                   published = getattr(item, "published", None)
                   if published:
                       try:
@@ -65,13 +64,11 @@ jobs:
                       "published_parsed": parsed
                   })
 
-          # Sort newest first
           entries.sort(
               key=lambda e: e.get("published_parsed", datetime.datetime.min),
               reverse=True
           )
 
-          # Build XML
           xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
           xml += '<rss version="2.0">\n<channel>\n'
           xml += '<title>Unified EPL Video Feed</title>\n'
@@ -96,5 +93,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add epl-video.xml
-          git commit -m "Update EPL feed"
-          git push
+          git commit -m "Update EPL feed" || echo "No changes to commit"
+          git push || echo "No changes to push"
