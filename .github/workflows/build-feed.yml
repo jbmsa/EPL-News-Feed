@@ -1,34 +1,13 @@
-name: Build Unified EPL Feed
-
-on:
-  schedule:
-    - cron: "0 * * * *"
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install feedparser requests
-
       - name: Build merged EPL feed
         run: |
           python3 << 'EOF'
           import feedparser
           import datetime
           import requests
+          import time
 
-          TIMEOUT = 10  # seconds
+          TIMEOUT = 20  # increased timeout
+          RETRIES = 1   # retry once
 
           YT = "https://yt.lemnoslife.com/videos?channel_id="
 
@@ -45,16 +24,30 @@ jobs:
 
           entries = []
 
+          def fetch_json(url):
+              for attempt in range(RETRIES + 1):
+                  try:
+                      r = requests.get(url, timeout=TIMEOUT)
+                      return r.json()
+                  except Exception as e:
+                      print(f"Attempt {attempt+1} failed for {url}: {e}")
+                      time.sleep(1)
+              print(f"Skipping {url} after retries.")
+              return None
+
           for url in sources:
               print(f"Fetching: {url}")
               try:
                   if "lemnoslife" in url:
-                      r = requests.get(url, timeout=TIMEOUT)
-                      data = r.json()
+                      data = fetch_json(url)
+                      if not data:
+                          continue
                       for item in data.get("items", []):
                           published = item.get("publishedAt", "")
                           try:
-                              parsed = datetime.datetime.fromisoformat(published.replace("Z",""))
+                              parsed = datetime.datetime.fromisoformat(
+                                  published.replace("Z","")
+                              )
                           except:
                               parsed = datetime.datetime.min
 
@@ -72,7 +65,10 @@ jobs:
                   print(f"Skipping {url}: {e}")
 
           # Sort newest first
-          entries.sort(key=lambda e: e.get("published_parsed", datetime.datetime.min), reverse=True)
+          entries.sort(
+              key=lambda e: e.get("published_parsed", datetime.datetime.min),
+              reverse=True
+          )
 
           # Build RSS XML
           xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -93,11 +89,3 @@ jobs:
 
           print("Feed built successfully.")
           EOF
-
-      - name: Commit merged feed
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add epl-video.xml
-          git commit -m "Updated merged EPL feed" || echo "No changes"
-          git push
