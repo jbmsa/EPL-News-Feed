@@ -30,6 +30,10 @@ jobs:
           python3 << 'EOF'
           import feedparser
           import datetime
+          import os
+
+          # Ensure docs folder exists
+          os.makedirs("docs", exist_ok=True)
 
           sources = [
               "https://www.nbcsports.com/rss/premier-league",
@@ -82,7 +86,7 @@ jobs:
 
           xml += "</channel>\n</rss>"
 
-          with open("epl-video.xml", "w") as f:
+          with open("docs/epl-video.xml", "w") as f:
               f.write(xml)
 
           print("Feed built successfully.")
@@ -92,6 +96,6 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add epl-video.xml
+          git add docs/epl-video.xml
           git commit -m "Update EPL feed" || echo "No changes to commit"
           git push || echo "No changes to push"
