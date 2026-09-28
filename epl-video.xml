@@ -1,26 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
-  <channel>
-    <title>Unified EPL Video Feed</title>
-    <link>https://www.premierleague.com</link>
-    <description>Combined Premier League video highlights from NBC Sports, Premier League YouTube, Sky Sports Football, and top club channels.</description>
-    <language>en</language>
-
-    <!-- NBC Sports Premier League (MRSS) -->
-    <source url="https://www.nbcsports.com/rss/premier-league">NBC Sports Premier League Video</source>
-
-    <!-- Premier League Official YouTube -->
-    <source url="https://www.youtube.com/feeds/videos.xml?channel_id=UCqZQlzSHbVJrwrn5XvzrzcA">Premier League YouTube</source>
-
-    <!-- Sky Sports Football YouTube -->
-    <source url="https://www.youtube.com/feeds/videos.xml?channel_id=UCNAf1k0yIjyGu3k9BwAg3lg">Sky Sports Football YouTube</source>
-
-    <!-- Club highlight channels -->
-    <source url="https://www.youtube.com/feeds/videos.xml?channel_id=UCpryVRk_VDudG8SHXgWcG0w">Arsenal FC YouTube</source>
-    <source url="https://www.youtube.com/feeds/videos.xml?channel_id=UC9LQwHZoucFT94UO8G9o8tQ">Liverpool FC YouTube</source>
-    <source url="https://www.youtube.com/feeds/videos.xml?channel_id=UCxgkH9s9hLr2GfQb6uVn7Ww">Manchester City YouTube</source>
-    <source url="https://www.youtube.com/feeds/videos.xml?channel_id=UC2vUeOeR3_1dC7lRzPp8X0w">Tottenham Hotspur YouTube</source>
-    <source url="https://www.youtube.com/feeds/videos.xml?channel_id=UC6yW44UGJJBvYTlfC7CRg2Q">Manchester United YouTube</source>
-
-  </channel>
+<channel>
+<title>Unified EPL Video Feed</title>
+<link>https://jbmsa.github.io/EPL-News-Feed/</link>
+<description>Merged EPL video highlights</description>
+</channel>
 </rss>
