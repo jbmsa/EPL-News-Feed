@@ -30,72 +30,48 @@ jobs:
           python3 << 'EOF'
           import feedparser
           import datetime
-          import requests
-          import time
-
-          TIMEOUT = 20
-          RETRIES = 1
-
-          YT = "https://yt.lemnoslife.com/videos?channel_id="
 
           sources = [
               "https://www.nbcsports.com/rss/premier-league",
-              YT + "UCqZQlzSHbVJrwrn5XvzrzcA",
-              YT + "UCNAf1k0yIjyGu3k9BwAg3lg",
-              YT + "UCpryVRk_VDudG8SHXgWcG0w",
-              YT + "UC9LQwHZoucFT94UO8G9o8tQ",
-              YT + "UCxgkH9s9hLr2GfQb6uVn7Ww",
-              YT + "UC2vUeOeR3_1dC7lRzPp8X0w",
-              YT + "UC6yW44UGJJBvYTlfC7CRg2Q"
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UCqZQlzSHbVJrwrn5XvzrzcA",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UCNAf1k0yIjyGu3k9BwAg3lg",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UCpryVRk_VDudG8SHXgWcG0w",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UC9LQwHZoucFT94UO8G9o8tQ",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UCxgkH9s9hLr2GfQb6uVn7Ww",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UC2vUeOeR3_1dC7lRzPp8X0w",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UC6yW44UGJJBvYTlfC7CRg2Q"
           ]
 
           entries = []
 
-          def fetch_json(url):
-              for attempt in range(RETRIES + 1):
-                  try:
-                      r = requests.get(url, timeout=TIMEOUT)
-                      return r.json()
-                  except Exception as e:
-                      print(f"Attempt {attempt+1} failed for {url}: {e}")
-                      time.sleep(1)
-              print(f"Skipping {url} after retries.")
-              return None
-
           for url in sources:
               print(f"Fetching: {url}")
-              try:
-                  if "lemnoslife" in url:
-                      data = fetch_json(url)
-                      if not data:
-                          continue
-                      for item in data.get("items", []):
-                          published = item.get("publishedAt", "")
-                          try:
-                              parsed = datetime.datetime.fromisoformat(
-                                  published.replace("Z","")
-                              )
-                          except:
-                              parsed = datetime.datetime.min
-
-                          entries.append({
-                              "title": item.get("title", "No title"),
-                              "link": f"https://www.youtube.com/watch?v={item.get('id')}",
-                              "published": published,
-                              "published_parsed": parsed
-                          })
+              feed = feedparser.parse(url)
+              for item in feed.entries:
+                  # Normalize published date
+                  published = getattr(item, "published", None)
+                  if published:
+                      try:
+                          parsed = datetime.datetime(*item.published_parsed[:6])
+                      except:
+                          parsed = datetime.datetime.min
                   else:
-                      feed = feedparser.parse(url)
-                      entries.extend(feed.entries)
+                      parsed = datetime.datetime.min
 
-              except Exception as e:
-                  print(f"Skipping {url}: {e}")
+                  entries.append({
+                      "title": item.get("title", "No title"),
+                      "link": item.get("link", ""),
+                      "published": published or "",
+                      "published_parsed": parsed
+                  })
 
+          # Sort newest first
           entries.sort(
               key=lambda e: e.get("published_parsed", datetime.datetime.min),
               reverse=True
           )
 
+          # Build XML
           xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
           xml += '<rss version="2.0">\n<channel>\n'
           xml += '<title>Unified EPL Video Feed</title>\n'
@@ -103,9 +79,9 @@ jobs:
           xml += '<description>Merged EPL video highlights</description>\n'
 
           for e in entries[:50]:
-              xml += f"<item><title>{e.get('title')}</title>"
-              xml += f"<link>{e.get('link')}</link>"
-              xml += f"<pubDate>{e.get('published')}</pubDate></item>\n"
+              xml += f"<item><title>{e['title']}</title>"
+              xml += f"<link>{e['link']}</link>"
+              xml += f"<pubDate>{e['published']}</pubDate></item>\n"
 
           xml += "</channel>\n</rss>"
 
