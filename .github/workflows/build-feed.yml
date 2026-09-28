@@ -1,0 +1,78 @@
+name: Build Unified EPL Feed
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # every hour
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install feedparser
+        run: pip install feedparser
+
+      - name: Build merged EPL feed
+        run: |
+          python3 << 'EOF'
+          import feedparser
+          import datetime
+
+          sources = [
+              "https://www.nbcsports.com/rss/premier-league",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UCqZQlzSHbVJrwrn5XvzrzcA",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UCNAf1k0yIjyGu3k9BwAg3lg",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UCpryVRk_VDudG8SHXgWcG0w",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UC9LQwHZoucFT94UO8G9o8tQ",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UCxgkH9s9hLr2GfQb6uVn7Ww",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UC2vUeOeR3_1dC7lRzPp8X0w",
+              "https://www.youtube.com/feeds/videos.xml?channel_id=UC6yW44UGJJBvYTlfC7CRg2Q"
+          ]
+
+          entries = []
+
+          for url in sources:
+              try:
+                  feed = feedparser.parse(url)
+                  entries.extend(feed.entries)
+              except Exception as e:
+                  print(f"Error parsing {url}: {e}")
+
+          # Sort newest first
+          entries.sort(key=lambda e: e.get("published_parsed", datetime.datetime.min), reverse=True)
+
+          # Build RSS XML
+          xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+          xml += '<rss version="2.0">\n<channel>\n'
+          xml += '<title>Unified EPL Video Feed</title>\n'
+          xml += '<link>https://jbmsa.github.io/EPL-News-Feed/</link>\n'
+          xml += '<description>Merged EPL video highlights</description>\n'
+
+          for e in entries[:50]:  # limit to 50 newest
+              title = e.get("title", "No title")
+              link = e.get("link", "")
+              pub = e.get("published", "")
+              xml += f"<item><title>{title}</title><link>{link}</link><pubDate>{pub}</pubDate></item>\n"
+
+          xml += "</channel>\n</rss>"
+
+          with open("epl-video.xml", "w") as f:
+              f.write(xml)
+          EOF
+
+      - name: Commit merged feed
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add epl-video.xml
+          git commit -m "Updated merged EPL feed" || echo "No changes"
+          git push
