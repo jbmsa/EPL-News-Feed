@@ -1,6 +1,6 @@
 
-      - name: Build merged EPL feed
-        run: |
+      name: Build merged EPL feed
+      run: |
           python3 << 'EOF'
           import feedparser
           import datetime
