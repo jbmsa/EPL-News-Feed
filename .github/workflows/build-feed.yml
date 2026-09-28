@@ -19,36 +19,55 @@ jobs:
           python-version: "3.11"
 
       - name: Install feedparser
-        run: pip install feedparser
+        run: pip install feedparser requests
 
       - name: Build merged EPL feed
         run: |
           python3 << 'EOF'
           import feedparser
           import datetime
+          import requests
+
+          # YouTube proxy that works inside GitHub Actions
+          YT = "https://yt.lemnoslife.com/videos?channel_id="
 
           sources = [
               "https://www.nbcsports.com/rss/premier-league",
-              "https://www.youtube.com/feeds/videos.xml?channel_id=UCqZQlzSHbVJrwrn5XvzrzcA",
-              "https://www.youtube.com/feeds/videos.xml?channel_id=UCNAf1k0yIjyGu3k9BwAg3lg",
-              "https://www.youtube.com/feeds/videos.xml?channel_id=UCpryVRk_VDudG8SHXgWcG0w",
-              "https://www.youtube.com/feeds/videos.xml?channel_id=UC9LQwHZoucFT94UO8G9o8tQ",
-              "https://www.youtube.com/feeds/videos.xml?channel_id=UCxgkH9s9hLr2GfQb6uVn7Ww",
-              "https://www.youtube.com/feeds/videos.xml?channel_id=UC2vUeOeR3_1dC7lRzPp8X0w",
-              "https://www.youtube.com/feeds/videos.xml?channel_id=UC6yW44UGJJBvYTlfC7CRg2Q"
+              YT + "UCqZQlzSHbVJrwrn5XvzrzcA",  # Premier League
+              YT + "UCNAf1k0yIjyGu3k9BwAg3lg",  # Sky Sports Football
+              YT + "UCpryVRk_VDudG8SHXgWcG0w",  # Arsenal
+              YT + "UC9LQwHZoucFT94UO8G9o8tQ",  # Liverpool
+              YT + "UCxgkH9s9hLr2GfQb6uVn7Ww",  # Man City
+              YT + "UC2vUeOeR3_1dC7lRzPp8X0w",  # Spurs
+              YT + "UC6yW44UGJJBvYTlfC7CRg2Q"   # Man United
           ]
 
           entries = []
 
           for url in sources:
               try:
-                  feed = feedparser.parse(url)
-                  entries.extend(feed.entries)
+                  if "lemnoslife" in url:
+                      # YouTube JSON → convert to RSS-like entries
+                      data = requests.get(url).json()
+                      for item in data.get("items", []):
+                          entries.append({
+                              "title": item.get("title", "No title"),
+                              "link": f"https://www.youtube.com/watch?v={item.get('id')}",
+                              "published": item.get("publishedAt", ""),
+                              "published_parsed": datetime.datetime.fromisoformat(item.get("publishedAt", "").replace("Z",""))
+                          })
+                  else:
+                      # Normal RSS feed
+                      feed = feedparser.parse(url)
+                      entries.extend(feed.entries)
               except Exception as e:
                   print(f"Error parsing {url}: {e}")
 
           # Sort newest first
-          entries.sort(key=lambda e: e.get("published_parsed", datetime.datetime.min), reverse=True)
+          def sort_key(e):
+              return e.get("published_parsed", datetime.datetime.min)
+
+          entries.sort(key=sort_key, reverse=True)
 
           # Build RSS XML
           xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -57,7 +76,7 @@ jobs:
           xml += '<link>https://jbmsa.github.io/EPL-News-Feed/</link>\n'
           xml += '<description>Merged EPL video highlights</description>\n'
 
-          for e in entries[:50]:  # limit to 50 newest
+          for e in entries[:50]:
               title = e.get("title", "No title")
               link = e.get("link", "")
               pub = e.get("published", "")
