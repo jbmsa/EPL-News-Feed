@@ -1,4 +1,4 @@
 # EPL-News-Feed
 EPL News Feed
-# Trigger Pages rebuild
+# Trigger Pages rebuilds
 
